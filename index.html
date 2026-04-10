@@ -115,7 +115,7 @@
 
         async function fetchData(url) {
             return new Promise((resolve, reject) => {
-                Papa.parse(url, {
+                Papa.parse('https://corsproxy.io/?'+encodeURIComponent(url), {
                     download: true,
                     header: true,
                     complete: (results) => resolve(results.data),
