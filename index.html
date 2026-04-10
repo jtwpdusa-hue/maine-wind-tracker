@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maine Wind Project Development Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .impact-high { border-left: 4px solid #ef4444; }
+        .impact-medium { border-left: 4px solid #f59e0b; }
+        .impact-low { border-left: 4px solid #10b981; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <header class="bg-slate-800 text-white p-6 shadow-lg">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">Maine Wind Project Development Tracker</h1>
+                <p class="text-slate-300 text-sm">Regulatory, Procurement & Planning Intelligence Dashboard</p>
+            </div>
+            <div id="connection-status" class="text-xs px-3 py-1 rounded-full bg-yellow-500 text-yellow-950 font-medium">
+                Connecting to Google Sheets...
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6">
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <p class="text-gray-500 text-xs uppercase font-bold tracking-wider">Total Updates</p>
+                <p id="kpi-total" class="text-3xl font-black mt-1">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <p class="text-gray-500 text-xs uppercase font-bold tracking-wider">High Impact</p>
+                <p id="kpi-high" class="text-3xl font-black mt-1 text-red-600">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <p class="text-gray-500 text-xs uppercase font-bold tracking-wider">Active RFPs</p>
+                <p id="kpi-rfp" class="text-3xl font-black mt-1 text-blue-600">0</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <p class="text-gray-500 text-xs uppercase font-bold tracking-wider">Planning/IGP</p>
+                <p id="kpi-planning" class="text-3xl font-black mt-1 text-amber-600">0</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex space-x-1 bg-gray-200 p-1 rounded-lg mb-6">
+            <button onclick="showTab('watchlist')" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition active bg-white shadow-sm" data-tab="watchlist">Watchlist</button>
+            <button onclick="showTab('procurement')" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition hover:bg-white/50" data-tab="procurement">Procurement</button>
+            <button onclick="showTab('planning')" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition hover:bg-white/50" data-tab="planning">Planning</button>
+            <button onclick="showTab('impact')" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition hover:bg-white/50" data-tab="impact">Project Impact</button>
+            <button onclick="showTab('sources')" class="tab-btn px-4 py-2 rounded-md text-sm font-medium transition hover:bg-white/50" data-tab="sources">Sources</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div id="watchlist" class="tab-content active">
+            <div class="grid grid-cols-1 gap-4" id="watchlist-list"></div>
+        </div>
+        <div id="procurement" class="tab-content">
+            <div class="grid grid-cols-1 gap-4" id="procurement-list"></div>
+        </div>
+        <div id="planning" class="tab-content">
+            <div class="grid grid-cols-1 gap-4" id="planning-list"></div>
+        </div>
+        <div id="impact" class="tab-content">
+            <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Update</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Offtake</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IX</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Schedule</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Permit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="impact-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="sources" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="sources-list"></div>
+        </div>
+    </main>
+
+    <script>
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1282327394&single=true&output=csv';
+        const SOURCE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1492682683&single=true&output=csv';
+
+        async function init() {
+            try {
+                const [trackerData, sourceData] = await Promise.all([
+                    fetchData(SHEET_CSV_URL),
+                    fetchData(SOURCE_CSV_URL)
+                ]);
+
+                updateKpis(trackerData);
+                renderLists(trackerData);
+                renderImpactTable(trackerData);
+                renderSources(sourceData);
+
+                document.getElementById('connection-status').innerText = 'Live Connection: Google Sheets';
+                document.getElementById('connection-status').className = 'text-xs px-3 py-1 rounded-full bg-green-500 text-green-950 font-medium';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('connection-status').innerText = 'Connection Error';
+                document.getElementById('connection-status').className = 'text-xs px-3 py-1 rounded-full bg-red-500 text-white font-medium';
+            }
+        }
+
+        function fetchData(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    complete: (results) => resolve(results.data),
+                    error: (err) => reject(err)
+                });
+            });
+        }
+
+        function updateKpis(data) {
+            document.getElementById('kpi-total').innerText = data.length;
+            document.getElementById('kpi-high').innerText = data.filter(i => i['Impact Level'] === 'High').length;
+            document.getElementById('kpi-rfp').innerText = data.filter(i => i['Category'] === 'RFP').length;
+            document.getElementById('kpi-planning').innerText = data.filter(i => i['Category'] === 'IRP/IGP').length;
+        }
+
+        function renderLists(data) {
+            const watchlist = document.getElementById('watchlist-list');
+            const procurement = document.getElementById('procurement-list');
+            const planning = document.getElementById('planning-list');
+
+            data.forEach(item => {
+                const card = createCard(item);
+                if (item['Section'] === 'Watchlist') watchlist.innerHTML += card;
+                if (item['Section'] === 'Procurement') procurement.innerHTML += card;
+                if (item['Section'] === 'Planning') planning.innerHTML += card;
+                // Items can be in multiple lists if needed, currently single assignment based on sheet
+            });
+        }
+
+        function createCard(item) {
+            const impactClass = `impact-${item['Impact Level'].toLowerCase()}`;
+            return `
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 ${impactClass}">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold text-gray-500 uppercase">${item['Source Organization']} • ${item['Date']}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${getImpactBadge(item['Impact Level'])}">${item['Impact Level']} Impact</span>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2"><a href="${item['Source URL']}" target="_blank" class="hover:text-blue-600">${item['Title']}</a></h3>
+                    <p class="text-gray-600 text-sm mb-4 leading-relaxed">${item['Summary']}</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${item['Tags'].split(',').map(tag => `<span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded font-medium">#${tag.trim()}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getImpactBadge(level) {
+            if (level === 'High') return 'bg-red-100 text-red-700';
+            if (level === 'Medium') return 'bg-amber-100 text-amber-700';
+            return 'bg-green-100 text-green-700';
+        }
+
+        function renderImpactTable(data) {
+            const body = document.getElementById('impact-table-body');
+            data.forEach(item => {
+                body.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-bold text-gray-900">${item['Title']}</p>
+                            <p class="text-xs text-gray-500">${item['Category']}</p>
+                        </td>
+                        <td class="px-6 py-4">${renderScore(item['Offtake Score'])}</td>
+                        <td class="px-6 py-4">${renderScore(item['Interconnection Score'])}</td>
+                        <td class="px-6 py-4">${renderScore(item['Schedule Score'])}</td>
+                        <td class="px-6 py-4">${renderScore(item['Permitting Score'])}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderScore(score) {
+            const s = parseInt(score);
+            let color = 'bg-gray-200 text-gray-600';
+            if (s >= 4) color = 'bg-red-500 text-white';
+            else if (s >= 3) color = 'bg-amber-500 text-white';
+            else if (s >= 1) color = 'bg-green-500 text-white';
+            return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${color}">${s}</span>`;
+        }
+
+        function renderSources(data) {
+            const list = document.getElementById('sources-list');
+            data.forEach(s => {
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-blue-400 transition">
+                        <h4 class="font-bold text-blue-600 text-sm"><a href="${s['URL']}" target="_blank">${s['Source Organization']}</a></h4>
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">${s['State/Region']} • Check ${s['Monitor Frequency']}</p>
+                        <p class="text-xs text-gray-600 mt-2">${s['Notes']}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('bg-white', 'shadow-sm');
+                b.classList.add('hover:bg-white/50');
+            });
+
+            document.getElementById(tabId).classList.add('active');
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            activeBtn.classList.add('bg-white', 'shadow-sm');
+            activeBtn.classList.remove('hover:bg-white/50');
+        }
+
+        init();
+    </script>
+</body>
+</html>
