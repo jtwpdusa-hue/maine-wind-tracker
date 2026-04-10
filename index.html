@@ -89,8 +89,8 @@
     </main>
 
     <script>
-        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1282327394&single=true&output=csv';
-        const SOURCE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1492682683&single=true&output=csv';
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1282327394&output=csv';
+        const SOURCE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkdiQdW0UFOOsM3uLMkKlEyk45SxFFYjzbnXUG-rLDnLxtmx_QMvyxjpfRWscPA9oOkHe6iqn5bli2o/pub?gid=1492682683&output=csv';
 
         async function init() {
             try {
@@ -141,7 +141,6 @@
                 if (item['Section'] === 'Watchlist') watchlist.innerHTML += card;
                 if (item['Section'] === 'Procurement') procurement.innerHTML += card;
                 if (item['Section'] === 'Planning') planning.innerHTML += card;
-                // Items can be in multiple lists if needed, currently single assignment based on sheet
             });
         }
 
